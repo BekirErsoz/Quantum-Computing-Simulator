@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  julia-quantum-core:
+    build:
+      context: ./quantum-core
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./quantum-core:/app
+    environment:
+      - JULIA_NUM_THREADS=8
+
+  python-api:
+    build:
+      context: ./quantum-circuits
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    depends_on:
+      - julia-quantum-core
+    volumes:
+      - ./quantum-circuits:/app
+    environment:
+      - FLASK_ENV=development
+
+  web-interface:
+    build:
+      context: ./web-interface
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - python-api
+    volumes:
+      - ./web-interface:/app
+      - ./visualization:/app/visualization
+
+  performance-engine:
+    build:
+      context: ./performance-engine
+      dockerfile: Dockerfile
+    volumes:
+      - ./performance-engine:/app
+    environment:
+      - OMP_NUM_THREADS=8
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - web-interface
+      - python-api
